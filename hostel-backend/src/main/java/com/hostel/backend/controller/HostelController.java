@@ -3,23 +3,26 @@ package com.hostel.backend.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hostel.backend.model.Hostel;
 import com.hostel.backend.repository.HostelRepository;
+import com.hostel.backend.service.CloudinaryService;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:5177"})
 public class HostelController {
 
     @Autowired
     private HostelRepository hostelRepository;
+
+    @Autowired
+    private CloudinaryService cloudinaryService;
 
     // GET ALL
     @GetMapping("/hostels")
@@ -33,7 +36,7 @@ public class HostelController {
         return hostelRepository.findById(id).orElse(null);
     }
 
-    // ADD HOSTEL (FIXED)
+    // ADD HOSTEL
     @PostMapping("/hostels")
     public ResponseEntity<?> addHostel(
 
@@ -52,27 +55,14 @@ public class HostelController {
 
             List<String> imagePaths = new ArrayList<>();
 
-            // ✅ SAFE PATH (works in all systems)
-            String uploadDir = System.getProperty("user.dir") + "/uploads/";
-
-            File folder = new File(uploadDir);
-            if (!folder.exists()) {
-                folder.mkdirs();
-            }
-
-            // SAVE IMAGES
+            // CLOUDINARY UPLOAD
             for (MultipartFile file : images) {
 
                 if (file.isEmpty()) continue;
 
-                String fileName = System.currentTimeMillis()
-                        + "_" + file.getOriginalFilename();
+                String url = cloudinaryService.uploadImage(file);
 
-                File dest = new File(uploadDir + fileName);
-
-                file.transferTo(dest);
-
-                imagePaths.add("/uploads/" + fileName);
+                imagePaths.add(url);
             }
 
             Hostel hostel = new Hostel();
@@ -95,7 +85,9 @@ public class HostelController {
             return ResponseEntity.ok(hostel);
 
         } catch (Exception e) {
+
             e.printStackTrace();
+
             return ResponseEntity.status(500).body(e.getMessage());
         }
     }
